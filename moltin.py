@@ -59,7 +59,7 @@ def get_product_photo_by_id(access_token, product_id):
     response = requests.get(url=api_url, headers=headers)
     response.raise_for_status()
 
-    return response.json()['data']['link']['self']
+    return response.json()['data']['link']['href']
 
 
 def get_or_create_cart(access_token, cart_id):

@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
-from moltin import get_auth_token, get_all_products, get_product_by_id
+from moltin import get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id
 
 
 env = Env()
@@ -38,10 +38,11 @@ def start(bot, update):
 def handle_menu(bot, update):
     query = update.callback_query
     product_by_id = get_product_by_id(ACCESS_TOKEN, query.data)
-    
+    product_photo_id = product_by_id['relationships']['main_image']['data']['id']
+    product_photo = get_product_photo_by_id(ACCESS_TOKEN, product_photo_id)
     product_name = product_by_id['name']
     product_description = product_by_id['description']
-    product_price_per_kg = '{0} per krg'.format(
+    product_price_per_kg = '{0} per kg'.format(
         product_by_id['meta']['display_price']['with_tax']['formatted'],
     )
     product_in_stock = product_by_id['meta']['stock']['availability']
@@ -52,15 +53,17 @@ def handle_menu(bot, update):
     else:
         kg_on_stock = 'Product is out of stock'
 
-    bot.edit_message_text(
-        text="{0}\n{1}\n{2}\n{3}".format(
+    bot.delete_message(chat_id=query.message.chat_id,
+                       message_id=query.message.message_id)
+    bot.send_photo(
+        chat_id=query.message.chat_id,
+        photo=product_photo,
+        caption="{0}\n{1}\n{2}\n{3}".format(
             product_name,
             product_price_per_kg,
             kg_on_stock,
             product_description,
         ),
-        chat_id=query.message.chat_id,
-        message_id=query.message.message_id
     )
 
     return "START"
@@ -91,6 +94,7 @@ def handle_users_reply(bot, update):
         db.set(chat_id, next_state)
     except Exception as err:
         print(err)
+
 
 def get_database_connection():
     global _database
