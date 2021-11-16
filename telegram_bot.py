@@ -6,6 +6,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
+import moltin
+
 
 env = Env()
 env.read_env()
@@ -14,22 +16,26 @@ TELEGRAM_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
 REDIS_PASSWORD = env.str('REDIS_PASSWORD')
 REDIS_HOST = env.str('REDIS_HOST')
 REDIS_PORT = env.int('REDIS_PORT')
+ACCESS_TOKEN = moltin.get_auth_token()
 
 _database = None
 
 
 def start(bot, update):
-    keyboard = [[InlineKeyboardButton("Option 1", callback_data='1'),
-                 InlineKeyboardButton("Option 2", callback_data='2')],
-
-                [InlineKeyboardButton("Option 3", callback_data='3')]]
+    products = moltin.get_all_products(ACCESS_TOKEN)
+    keyboard = [
+        [
+            InlineKeyboardButton(product['name'], callback_data=product['id']) 
+            for product in products
+        ]
+    ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text(text='Привет!', reply_markup=reply_markup)
-    return "ECHO"
+    return "HANDLE_MENU"
 
 
-def button(bot, update):
+def handle_menu(bot, update):
     query = update.callback_query
 
     bot.edit_message_text(text="Selected option: {}".format(query.data),
@@ -60,7 +66,7 @@ def handle_users_reply(bot, update):
     
     states_functions = {
         'START': start,
-        'ECHO': echo
+        'HANDLE_MENU': handle_menu,
     }
     state_handler = states_functions[user_state]
     try:
@@ -85,5 +91,5 @@ if __name__ == '__main__':
     dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
     dispatcher.add_handler(CommandHandler('start', handle_users_reply))
-    dispatcher.add_handler(CallbackQueryHandler(button))
+    dispatcher.add_handler(CallbackQueryHandler(handle_menu))
     updater.start_polling()
