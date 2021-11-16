@@ -6,6 +6,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
+from moltin import get_auth_token, get_all_products, get_product_by_id
+
 
 env = Env()
 env.read_env()
@@ -14,33 +16,54 @@ TELEGRAM_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
 REDIS_PASSWORD = env.str('REDIS_PASSWORD')
 REDIS_HOST = env.str('REDIS_HOST')
 REDIS_PORT = env.int('REDIS_PORT')
+ACCESS_TOKEN = get_auth_token()
 
 _database = None
 
 
 def start(bot, update):
-    keyboard = [[InlineKeyboardButton("Option 1", callback_data='1'),
-                 InlineKeyboardButton("Option 2", callback_data='2')],
-
-                [InlineKeyboardButton("Option 3", callback_data='3')]]
+    products = get_all_products(ACCESS_TOKEN)
+    keyboard = [
+        [
+            InlineKeyboardButton(product['name'], callback_data=product['id']) 
+            for product in products
+        ]
+    ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text(text='Привет!', reply_markup=reply_markup)
-    return "ECHO"
+    return "HANDLE_MENU"
 
 
-def button(bot, update):
+def handle_menu(bot, update):
     query = update.callback_query
+    product_by_id = get_product_by_id(ACCESS_TOKEN, query.data)
+    
+    product_name = product_by_id['name']
+    product_description = product_by_id['description']
+    product_price_per_kg = '{0} per krg'.format(
+        product_by_id['meta']['display_price']['with_tax']['formatted'],
+    )
+    product_in_stock = product_by_id['meta']['stock']['availability']
+    if product_in_stock == 'in-stock':
+        kg_on_stock = '{0} on stock'.format(
+            product_by_id['meta']['stock']['level'],
+        )
+    else:
+        kg_on_stock = 'Product is out of stock'
 
-    bot.edit_message_text(text="Selected option: {}".format(query.data),
-                          chat_id=query.message.chat_id,
-                          message_id=query.message.message_id)
+    bot.edit_message_text(
+        text="{0}\n{1}\n{2}\n{3}".format(
+            product_name,
+            product_price_per_kg,
+            kg_on_stock,
+            product_description,
+        ),
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id
+    )
 
-
-def echo(bot, update):
-    users_reply = update.message.text
-    update.message.reply_text(users_reply)
-    return "ECHO"
+    return "START"
 
 
 def handle_users_reply(bot, update):
@@ -60,7 +83,7 @@ def handle_users_reply(bot, update):
     
     states_functions = {
         'START': start,
-        'ECHO': echo
+        'HANDLE_MENU': handle_menu,
     }
     state_handler = states_functions[user_state]
     try:
@@ -85,5 +108,5 @@ if __name__ == '__main__':
     dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
     dispatcher.add_handler(CommandHandler('start', handle_users_reply))
-    dispatcher.add_handler(CallbackQueryHandler(button))
+    dispatcher.add_handler(CallbackQueryHandler(handle_menu))
     updater.start_polling()

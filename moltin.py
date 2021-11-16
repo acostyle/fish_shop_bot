@@ -26,15 +26,29 @@ def get_auth_token():
 
 
 def get_all_products(access_token):
-    api_url = '{0}/v2/products'.format(API_BASE_URL)
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
         'content-type': 'application/json',
     }
+    api_url = '{0}/v2/products'.format(API_BASE_URL)
+    response = requests.get(url=api_url, headers=headers)
+    response.raise_for_status()
+    response_json = response.json()
+
+    products = [product for product in response_json['data']]
+
+    return products
+
+
+def get_product_by_id(access_token, product_id):
+    headers = {
+        'Authorization': 'Bearer {0}'.format(access_token),
+    }
+    api_url = '{0}/v2/products/{1}'.format(API_BASE_URL, product_id)
     response = requests.get(url=api_url, headers=headers)
     response.raise_for_status()
 
-    return response.json()
+    return response.json()['data']
 
 
 def get_or_create_cart(access_token, cart_id):
@@ -85,14 +99,15 @@ def get_cart_items(access_token, cart_id):
 def main():
     access_token = get_auth_token()
     all_products = get_all_products(access_token)
+    print(all_products)
 
-    random_product_id = all_products['data'][0]['id']
+    #random_product_id = all_products['data'][0]['id']
 
     cart_id = 'acostyle'
     product_amount = 1
 
-    add_product_to_cart(access_token, cart_id, random_product_id, product_amount)
-    get_cart_items(access_token, cart_id)
+    #add_product_to_cart(access_token, cart_id, random_product_id, product_amount)
+    #get_cart_items(access_token, cart_id)
 
 
 if __name__ == '__main__':
