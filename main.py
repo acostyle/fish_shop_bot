@@ -70,6 +70,18 @@ def add_product_to_cart(access_token, cart_id, product_id, product_amount):
     return response.json()
 
 
+def get_cart_items(access_token, cart_id):
+    headers = {
+        'Authorization': 'Bearer {0}'.format(access_token),
+    }
+
+    api_url = '{0}/v2/carts/{1}/items'.format(API_BASE_URL, cart_id)
+    response = requests.get(url=api_url, headers=headers)
+    response.raise_for_status()
+
+    return response.json()
+
+
 def main():
     access_token = get_auth_token()
     all_products = get_all_products(access_token)
@@ -80,7 +92,7 @@ def main():
     product_amount = 1
 
     add_product_to_cart(access_token, cart_id, random_product_id, product_amount)
-
+    get_cart_items(access_token, cart_id)
 
 
 if __name__ == '__main__':
