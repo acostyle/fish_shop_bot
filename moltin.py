@@ -26,11 +26,11 @@ def get_auth_token():
 
 
 def get_all_products(access_token):
-    api_url = '{0}/v2/products'.format(API_BASE_URL)
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
         'content-type': 'application/json',
     }
+    api_url = '{0}/v2/products'.format(API_BASE_URL)
     response = requests.get(url=api_url, headers=headers)
     response.raise_for_status()
     response_json = response.json()
@@ -38,6 +38,17 @@ def get_all_products(access_token):
     products = [product for product in response_json['data']]
 
     return products
+
+
+def get_product_by_id(access_token, product_id):
+    headers = {
+        'Authorization': 'Bearer {0}'.format(access_token),
+    }
+    api_url = '{0}/v2/products/{1}'.format(API_BASE_URL, product_id)
+    response = requests.get(url=api_url, headers=headers)
+    response.raise_for_status()
+
+    return response.json()['data']
 
 
 def get_or_create_cart(access_token, cart_id):
