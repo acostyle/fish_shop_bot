@@ -2,6 +2,7 @@ import redis
 
 from environs import Env
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
@@ -18,8 +19,22 @@ _database = None
 
 
 def start(bot, update):
-    update.message.reply_text(text='Привет!')
+    keyboard = [[InlineKeyboardButton("Option 1", callback_data='1'),
+                 InlineKeyboardButton("Option 2", callback_data='2')],
+
+                [InlineKeyboardButton("Option 3", callback_data='3')]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text(text='Привет!', reply_markup=reply_markup)
     return "ECHO"
+
+
+def button(bot, update):
+    query = update.callback_query
+
+    bot.edit_message_text(text="Selected option: {}".format(query.data),
+                          chat_id=query.message.chat_id,
+                          message_id=query.message.message_id)
 
 
 def echo(bot, update):
@@ -70,4 +85,5 @@ if __name__ == '__main__':
     dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
     dispatcher.add_handler(CommandHandler('start', handle_users_reply))
+    dispatcher.add_handler(CallbackQueryHandler(button))
     updater.start_polling()
