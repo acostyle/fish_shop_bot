@@ -1,6 +1,7 @@
 import requests
 from environs import Env
-from pprint import pprint
+
+
 env = Env()
 env.read_env()
 
@@ -32,15 +33,67 @@ def get_all_products(access_token):
     }
     response = requests.get(url=api_url, headers=headers)
     response.raise_for_status()
+
+    return response.json()
+
+
+def get_or_create_cart(access_token, cart_id):
+    headers = {
+        'Authorization': 'Bearer {0}'.format(access_token),
+    }
+
+    api_url = '{0}/v2/carts/{1}'.format(API_BASE_URL, cart_id)
+    response = requests.get(url=api_url, headers=headers)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def add_product_to_cart(access_token, cart_id, product_id, product_amount):
+    headers = {
+        'Authorization': 'Bearer {0}'.format(access_token),
+        'content-type': 'application/json',
+    }
+
+    payload = {
+        "data": {
+            "id": product_id,
+            "type": "cart_item",
+            "quantity": product_amount
+        }
+    }
+
+    api_url = '{0}/v2/carts/{1}/items'.format(API_BASE_URL, cart_id)
+    response = requests.post(url=api_url, headers=headers, json=payload)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def get_cart_items(access_token, cart_id):
+    headers = {
+        'Authorization': 'Bearer {0}'.format(access_token),
+    }
+
+    api_url = '{0}/v2/carts/{1}/items'.format(API_BASE_URL, cart_id)
+    response = requests.get(url=api_url, headers=headers)
+    response.raise_for_status()
+
     return response.json()
 
 
 def main():
     access_token = get_auth_token()
     all_products = get_all_products(access_token)
-    pprint(all_products)
+
+    random_product_id = all_products['data'][0]['id']
+
+    cart_id = 'acostyle'
+    product_amount = 1
+
+    add_product_to_cart(access_token, cart_id, random_product_id, product_amount)
+    get_cart_items(access_token, cart_id)
 
 
 if __name__ == '__main__':
     main()
-
