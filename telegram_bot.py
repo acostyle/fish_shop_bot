@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
-import moltin
+from moltin import get_auth_token, get_all_products, get_product_by_id
 
 
 env = Env()
@@ -16,13 +16,13 @@ TELEGRAM_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
 REDIS_PASSWORD = env.str('REDIS_PASSWORD')
 REDIS_HOST = env.str('REDIS_HOST')
 REDIS_PORT = env.int('REDIS_PORT')
-ACCESS_TOKEN = moltin.get_auth_token()
+ACCESS_TOKEN = get_auth_token()
 
 _database = None
 
 
 def start(bot, update):
-    products = moltin.get_all_products(ACCESS_TOKEN)
+    products = get_all_products(ACCESS_TOKEN)
     keyboard = [
         [
             InlineKeyboardButton(product['name'], callback_data=product['id']) 
@@ -37,16 +37,33 @@ def start(bot, update):
 
 def handle_menu(bot, update):
     query = update.callback_query
+    product_by_id = get_product_by_id(ACCESS_TOKEN, query.data)
+    
+    product_name = product_by_id['name']
+    product_description = product_by_id['description']
+    product_price_per_kg = '{0} per krg'.format(
+        product_by_id['meta']['display_price']['with_tax']['formatted'],
+    )
+    product_in_stock = product_by_id['meta']['stock']['availability']
+    if product_in_stock == 'in-stock':
+        kg_on_stock = '{0} on stock'.format(
+            product_by_id['meta']['stock']['level'],
+        )
+    else:
+        kg_on_stock = 'Product is out of stock'
 
-    bot.edit_message_text(text="Selected option: {}".format(query.data),
-                          chat_id=query.message.chat_id,
-                          message_id=query.message.message_id)
+    bot.edit_message_text(
+        text="{0}\n{1}\n{2}\n{3}".format(
+            product_name,
+            product_price_per_kg,
+            kg_on_stock,
+            product_description,
+        ),
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id
+    )
 
-
-def echo(bot, update):
-    users_reply = update.message.text
-    update.message.reply_text(users_reply)
-    return "ECHO"
+    return "START"
 
 
 def handle_users_reply(bot, update):
