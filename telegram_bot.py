@@ -1,12 +1,13 @@
 import redis
 
 from environs import Env
-
+from requests.models import HTTPError
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
+from validate_email import validate_email
 
-from moltin import delete_product_from_cart, get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id, get_or_create_cart, add_product_to_cart, get_cart_items, delete_product_from_cart
+from moltin import create_customer, delete_product_from_cart, get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id, get_or_create_cart, add_product_to_cart, get_cart_items, delete_product_from_cart
 
 
 env = Env()
@@ -170,6 +171,14 @@ def handle_cart(bot, update):
         )
 
         return "HANDLE_MENU"
+    elif query.data == 'pay':
+        bot.edit_message_text(
+            text='Please, send your email',
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+        )
+
+        return "WAITING_EMAIL"
     else:
         delete_product_from_cart(
             ACCESS_TOKEN,
@@ -178,6 +187,28 @@ def handle_cart(bot, update):
         )
         generate_cart(bot, update)
         return "HANDLE_CART"
+
+
+def handle_email(bot, update):
+    email = update.message.text
+    is_valid = validate_email(email)
+    if is_valid:
+        try:
+            create_customer(ACCESS_TOKEN, str(update.message.chat_id), email)
+        except HTTPError:
+            update.message.reply_text('Try again!')
+            return "WAITING EMAIL"
+
+        update.message.reply_text(
+            text='Manager will text you on this email: {0}'.format(email),
+        )
+        start(bot, update)
+    
+        return "HANDLE_DESCRIPTION"
+    update.message.reply_text('Error! Not valid email')
+
+    return "WAITING EMAIL"
+
 
 
 def generate_cart(bot, update):
@@ -193,7 +224,10 @@ def generate_cart(bot, update):
         for cart_item in cart_items['data']
     ]
     keyboard.append(
-        [InlineKeyboardButton('Menu', callback_data='menu')]
+        [
+            InlineKeyboardButton('Menu', callback_data='menu'),
+            InlineKeyboardButton('Pay', callback_data='pay'),
+        ]
     )
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -262,6 +296,7 @@ def handle_users_reply(bot, update):
         'HANDLE_MENU': handle_menu,
         'HANDLE_DESCRIPTION': handle_description,
         'HANDLE_CART': handle_cart,
+        'WAITING_EMAIL': handle_email,
     }
     state_handler = states_functions[user_state]
     try:
