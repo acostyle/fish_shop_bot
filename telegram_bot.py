@@ -31,24 +31,35 @@ def start(bot, update):
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(text='Привет!', reply_markup=reply_markup)
+    update.message.reply_text(
+        text='Welcome! Please, choose a fish:',
+        reply_markup=reply_markup
+    )
     return "HANDLE_MENU"
 
 
 def handle_menu(bot, update):
     query = update.callback_query
-    product_by_id = get_product_by_id(ACCESS_TOKEN, query.data)
-    product_photo_id = product_by_id['relationships']['main_image']['data']['id']
+
+    keyboard = [
+        [
+            InlineKeyboardButton('Назад', callback_data='back')
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    product = get_product_by_id(ACCESS_TOKEN, query.data)
+    product_photo_id = product['relationships']['main_image']['data']['id']
     product_photo = get_product_photo_by_id(ACCESS_TOKEN, product_photo_id)
-    product_name = product_by_id['name']
-    product_description = product_by_id['description']
+    product_name = product['name']
+    product_description = product['description']
     product_price_per_kg = '{0} per kg'.format(
-        product_by_id['meta']['display_price']['with_tax']['formatted'],
+        product['meta']['display_price']['with_tax']['formatted'],
     )
-    product_in_stock = product_by_id['meta']['stock']['availability']
+    product_in_stock = product['meta']['stock']['availability']
     if product_in_stock == 'in-stock':
         kg_on_stock = '{0} on stock'.format(
-            product_by_id['meta']['stock']['level'],
+            product['meta']['stock']['level'],
         )
     else:
         kg_on_stock = 'Product is out of stock'
@@ -58,6 +69,7 @@ def handle_menu(bot, update):
     bot.send_photo(
         chat_id=query.message.chat_id,
         photo=product_photo,
+        reply_markup=reply_markup,
         caption="{0}\n{1}\n{2}\n{3}".format(
             product_name,
             product_price_per_kg,
@@ -66,7 +78,30 @@ def handle_menu(bot, update):
         ),
     )
 
-    return "START"
+    return "HANDLE_DESCRIPTION"
+
+
+def handle_description(bot, update):
+    query = update.callback_query
+    if query.data == 'back':
+        products = get_all_products(ACCESS_TOKEN)
+        keyboard = [
+            [
+                InlineKeyboardButton(product['name'], callback_data=product['id']) 
+                for product in products
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        bot.delete_message(chat_id=query.message.chat_id,
+                       message_id=query.message.message_id)
+        bot.send_message(
+            reply_markup=reply_markup,
+            chat_id=query.message.chat_id,
+            text='Welcome! Please, choose a fish:',
+        )
+
+        return "HANDLE_MENU"
+
 
 
 def handle_users_reply(bot, update):
@@ -87,6 +122,7 @@ def handle_users_reply(bot, update):
     states_functions = {
         'START': start,
         'HANDLE_MENU': handle_menu,
+        'HANDLE_DESCRIPTION': handle_description,
     }
     state_handler = states_functions[user_state]
     try:
