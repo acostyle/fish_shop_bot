@@ -1,12 +1,13 @@
 import redis
 
 from environs import Env
-
+from requests.models import HTTPError
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
+from validate_email import validate_email
 
-from moltin import delete_product_from_cart, get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id, get_or_create_cart, add_product_to_cart, get_cart_items, delete_product_from_cart
+from moltin import create_customer, delete_product_from_cart, get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id, get_or_create_cart, add_product_to_cart, get_cart_items, delete_product_from_cart
 
 
 env = Env()
@@ -174,7 +175,7 @@ def handle_cart(bot, update):
         bot.edit_message_text(
             text='Please, send your email',
             chat_id=query.message.chat_id,
-            message_id=query.message.message_id
+            message_id=query.message.message_id,
         )
 
         return "WAITING_EMAIL"
@@ -190,7 +191,24 @@ def handle_cart(bot, update):
 
 def handle_email(bot, update):
     email = update.message.text
-    print(email)
+    is_valid = validate_email(email)
+    if is_valid:
+        try:
+            create_customer(ACCESS_TOKEN, str(update.message.chat_id), email)
+        except HTTPError:
+            update.message.reply_text('Try again!')
+            return "WAITING EMAIL"
+
+        update.message.reply_text(
+            text='Manager will text you on this email: {0}'.format(email),
+        )
+        start(bot, update)
+    
+        return "HANDLE_DESCRIPTION"
+    update.message.reply_text('Error! Not valid email')
+
+    return "WAITING EMAIL"
+
 
 
 def generate_cart(bot, update):
