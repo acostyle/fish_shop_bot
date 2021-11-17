@@ -1,7 +1,6 @@
 import requests
 from environs import Env
 
-
 env = Env()
 env.read_env()
 
@@ -11,14 +10,14 @@ CLIENT_SECRET = env.str('CLIENT_SECRET')
 
 
 def get_auth_token():
-    data = {
+    payload = {
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
-        'grant_type': 'implicit'
+        'grant_type': 'implicit',
     }
 
     api_url = '{0}/oauth/access_token'.format(API_BASE_URL)
-    response = requests.post(url=api_url, data=data)
+    response = requests.post(url=api_url, data=payload)
     response.raise_for_status()
     response_json = response.json()
 
@@ -55,7 +54,7 @@ def get_product_photo_by_id(access_token, product_id):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
     }
-    api_url='{0}/v2/files/{1}'.format(API_BASE_URL, product_id)
+    api_url = '{0}/v2/files/{1}'.format(API_BASE_URL, product_id)
     response = requests.get(url=api_url, headers=headers)
     response.raise_for_status()
 
@@ -81,11 +80,11 @@ def add_product_to_cart(access_token, cart_id, product_id, product_amount):
     }
 
     payload = {
-        "data": {
-            "id": product_id,
-            "type": "cart_item",
-            "quantity": product_amount
-        }
+        'data': {
+            'id': product_id,
+            'type': 'cart_item',
+            'quantity': product_amount,
+        },
     }
 
     api_url = '{0}/v2/carts/{1}/items'.format(API_BASE_URL, cart_id)
@@ -127,22 +126,14 @@ def create_customer(access_token, chat_id, email):
         'Authorization': 'Bearer {0}'.format(access_token),
     }
     payload = {
-        "data": {
-            "type": "customer",
-            "name": chat_id,
-            "email": email,
-        }
+        'data': {
+            'type': 'customer',
+            'name': chat_id,
+            'email': email,
+        },
     }
     api_url = '{0}/v2/customers/'.format(API_BASE_URL)
     response = requests.post(url=api_url, headers=headers, json=payload)
     response.raise_for_status()
 
     return response.json()['data']['id']
-
-
-def main():
-    access_token = get_auth_token()
-
-
-if __name__ == '__main__':
-    main()
