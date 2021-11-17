@@ -47,21 +47,24 @@ def handle_menu(bot, update):
         [
             InlineKeyboardButton(
                 '1 kg',
-                callback_data='1 kg, {0}'.format(query.data)
+                callback_data='1, {0}'.format(query.data)
             ),
             InlineKeyboardButton(
                 '5 kg',
-                callback_data='5 kg, {0}'.format(query.data)
+                callback_data='5, {0}'.format(query.data)
             ),
             InlineKeyboardButton(
                 '10 kg',
-                callback_data='10 kg, {0}'.format(query.data)
+                callback_data='10, {0}'.format(query.data)
             ),
         ],
         [InlineKeyboardButton('Назад', callback_data='back')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    if query.data == 'cart':
+        handle_cart(bot, update)
+        return "HANDLE_CART"
     product = get_product_by_id(ACCESS_TOKEN, query.data)
     product_photo_id = product['relationships']['main_image']['data']['id']
     product_photo = get_product_photo_by_id(ACCESS_TOKEN, product_photo_id)
@@ -97,16 +100,15 @@ def handle_menu(bot, update):
 
 def handle_description(bot, update):
     query = update.callback_query
-    query_info = query.data.split(', ')
-    query_command = query_info[0]
-    query_product_id = query_info[1]
-    if query_command == 'back':
+
+    if query.data == 'back':
         products = get_all_products(ACCESS_TOKEN)
         keyboard = [
             [
                 InlineKeyboardButton(product['name'], callback_data=product['id']) 
                 for product in products
-            ]
+            ],
+            [InlineKeyboardButton('Cart', callback_data='cart')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         bot.delete_message(chat_id=query.message.chat_id,
@@ -119,28 +121,72 @@ def handle_description(bot, update):
 
         return "HANDLE_MENU"
     
-    elif query_command == '1 kg':
-        add_product_to_cart(
-            ACCESS_TOKEN,
-            query.message.chat_id,
-            query_product_id,
-            1,
-        )
-    elif query_command == '5 kg':
-        add_product_to_cart(
-            ACCESS_TOKEN,
-            query.message.chat_id,
-            query_product_id,
-            5,
-        )
-    elif query_command == '10 kg':
-        add_product_to_cart(
-            ACCESS_TOKEN,
-            query.message.chat_id,
-            query_product_id,
-            10,
-        )
+    elif query.data == 'cart':
+        handle_cart(bot, update)
+        return "HANDLE_CART"
     
+    product_quantity, product_id = query.data.split(', ')
+    add_product_to_cart(
+        ACCESS_TOKEN,
+        query.message.chat_id,
+        product_id,
+        int(product_quantity),
+    )
+
+    return 'HANDLE_DESCRIPTION'
+
+
+def handle_cart(bot, update):
+    query = update.callback_query
+    cart_items = get_cart_items(ACCESS_TOKEN, query.message.chat_id)
+    keyboard = [
+            [InlineKeyboardButton('Back to menu', callback_data='menu')],
+        ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if not cart_items['data']:
+        bot.send_message(
+            text='Cart is empty',
+            reply_markup=reply_markup,
+            chat_id=query.message.chat_id
+        )
+        bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
+        return "HANDLE_DESCRIPTION"
+
+    total = cart_items['meta']['display_price']['without_tax']['formatted']
+    cart_description = []
+    for cart_item in cart_items['data']:
+        name = cart_item['name']
+        quantity = cart_item['quantity']
+        price = cart_item['meta']['display_price']['with_tax']
+        price_per_kg = price['unit']['formatted']
+        total_price = price['value']['formatted']
+        cart_description.append(
+            '\nName: {0}\n\
+            \nQuantity: {1}\
+            \nPrice per kg: {2}\
+            \nTotal product price: {3}\n\n'.format(
+                name,
+                quantity,
+                price_per_kg,
+                total_price,
+            )
+        )
+
+    cart_description.append('Total: {0}'.format(total))
+    cart_recipe = ''.join(cart_description)
+    bot.send_message(
+        text=cart_recipe,
+        reply_markup=reply_markup,
+        chat_id=query.message.chat_id,
+    )
+    bot.delete_message(
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id,
+    )
 
 
 
@@ -163,6 +209,7 @@ def handle_users_reply(bot, update):
         'START': start,
         'HANDLE_MENU': handle_menu,
         'HANDLE_DESCRIPTION': handle_description,
+        'HANDLE_CART': handle_cart,
     }
     state_handler = states_functions[user_state]
     try:
