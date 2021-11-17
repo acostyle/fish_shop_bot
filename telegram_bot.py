@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
-from moltin import get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id, get_or_create_cart, add_product_to_cart, get_cart_items
+from moltin import delete_product_from_cart, get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id, get_or_create_cart, add_product_to_cart, get_cart_items, delete_product_from_cart
 
 
 env = Env()
@@ -22,97 +22,105 @@ _database = None
 
 
 def start(bot, update):
-    products = get_all_products(ACCESS_TOKEN)
     get_or_create_cart(ACCESS_TOKEN, update.message.chat_id)
+    products = get_all_products(ACCESS_TOKEN)
     keyboard = [
         [
-            InlineKeyboardButton(product['name'], callback_data=product['id'])
+            InlineKeyboardButton(
+                product['name'],
+                callback_data=product['id']
+            ) 
             for product in products
         ],
         [InlineKeyboardButton('Cart', callback_data='cart')],
     ]
-
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text(
+        reply_markup=reply_markup,
         text='Welcome! Please, choose a fish:',
-        reply_markup=reply_markup
     )
     return "HANDLE_MENU"
 
 
 def handle_menu(bot, update):
     query = update.callback_query
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                '1 kg',
-                callback_data='1, {0}'.format(query.data)
-            ),
-            InlineKeyboardButton(
-                '5 kg',
-                callback_data='5, {0}'.format(query.data)
-            ),
-            InlineKeyboardButton(
-                '10 kg',
-                callback_data='10, {0}'.format(query.data)
-            ),
-        ],
-        [InlineKeyboardButton('Назад', callback_data='back')],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
     if query.data == 'cart':
-        handle_cart(bot, update)
+        generate_cart(bot, update)
         return "HANDLE_CART"
-    product = get_product_by_id(ACCESS_TOKEN, query.data)
-    product_photo_id = product['relationships']['main_image']['data']['id']
-    product_photo = get_product_photo_by_id(ACCESS_TOKEN, product_photo_id)
-    product_name = product['name']
-    product_description = product['description']
-    product_price_per_kg = '{0} per kg'.format(
-        product['meta']['display_price']['with_tax']['formatted'],
-    )
-    product_in_stock = product['meta']['stock']['availability']
-    if product_in_stock == 'in-stock':
-        kg_on_stock = '{0} on stock'.format(
-            product['meta']['stock']['level'],
-        )
     else:
-        kg_on_stock = 'Product is out of stock'
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    '1 kg',
+                    callback_data='1, {0}'.format(query.data)
+                ),
+                InlineKeyboardButton(
+                    '5 kg',
+                    callback_data='5, {0}'.format(query.data)
+                ),
+                InlineKeyboardButton(
+                    '10 kg',
+                    callback_data='10, {0}'.format(query.data)
+                ),
+            ],
+            [InlineKeyboardButton('Menu', callback_data='menu')],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-    bot.delete_message(chat_id=query.message.chat_id,
-                       message_id=query.message.message_id)
-    bot.send_photo(
-        chat_id=query.message.chat_id,
-        photo=product_photo,
-        reply_markup=reply_markup,
-        caption="{0}\n{1}\n{2}\n{3}".format(
-            product_name,
-            product_price_per_kg,
-            kg_on_stock,
-            product_description,
-        ),
-    )
+        product = get_product_by_id(ACCESS_TOKEN, query.data)
+        product_photo_id = product['relationships']['main_image']['data']['id']
+        product_photo = get_product_photo_by_id(ACCESS_TOKEN, product_photo_id)
+        product_name = product['name']
+        product_description = product['description']
+        product_price_per_kg = '{0} per kg'.format(
+            product['meta']['display_price']['with_tax']['formatted'],
+        )
+        product_in_stock = product['meta']['stock']['availability']
+        if product_in_stock == 'in-stock':
+            kg_on_stock = '{0} on stock'.format(
+                product['meta']['stock']['level'],
+            )
+        else:
+            kg_on_stock = 'Product is out of stock'
 
-    return "HANDLE_DESCRIPTION"
+        bot.delete_message(chat_id=query.message.chat_id,
+                        message_id=query.message.message_id)
+        bot.send_photo(
+            chat_id=query.message.chat_id,
+            photo=product_photo,
+            reply_markup=reply_markup,
+            caption="{0}\n{1}\n{2}\n{3}".format(
+                product_name,
+                product_price_per_kg,
+                kg_on_stock,
+                product_description,
+            ),
+        )
+
+        return "HANDLE_DESCRIPTION"    
 
 
 def handle_description(bot, update):
     query = update.callback_query
 
-    if query.data == 'back':
+    if query.data == 'menu':
         products = get_all_products(ACCESS_TOKEN)
         keyboard = [
             [
-                InlineKeyboardButton(product['name'], callback_data=product['id']) 
+                InlineKeyboardButton(
+                    product['name'],
+                    callback_data=product['id']
+                ) 
                 for product in products
             ],
             [InlineKeyboardButton('Cart', callback_data='cart')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        bot.delete_message(chat_id=query.message.chat_id,
-                       message_id=query.message.message_id)
+        bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
         bot.send_message(
             reply_markup=reply_markup,
             chat_id=query.message.chat_id,
@@ -120,9 +128,8 @@ def handle_description(bot, update):
         )
 
         return "HANDLE_MENU"
-    
     elif query.data == 'cart':
-        handle_cart(bot, update)
+        generate_cart(bot, update)
         return "HANDLE_CART"
     
     product_quantity, product_id = query.data.split(', ')
@@ -133,17 +140,63 @@ def handle_description(bot, update):
         int(product_quantity),
     )
 
-    return 'HANDLE_DESCRIPTION'
+    return "HANDLE_MENU"
 
 
 def handle_cart(bot, update):
     query = update.callback_query
+
+    if query.data == 'menu':
+        products = get_all_products(ACCESS_TOKEN)
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    product['name'],
+                    callback_data=product['id']
+                ) 
+                for product in products
+            ],
+            [InlineKeyboardButton('Cart', callback_data='cart')],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
+        bot.send_message(
+            reply_markup=reply_markup,
+            chat_id=query.message.chat_id,
+            text='Welcome! Please, choose a fish:',
+        )
+
+        return "HANDLE_MENU"
+    else:
+        delete_product_from_cart(
+            ACCESS_TOKEN,
+            query.message.chat_id,
+            query.data
+        )
+        generate_cart(bot, update)
+        return "HANDLE_CART"
+
+
+def generate_cart(bot, update):
+    query = update.callback_query
     cart_items = get_cart_items(ACCESS_TOKEN, query.message.chat_id)
     keyboard = [
-            [InlineKeyboardButton('Back to menu', callback_data='menu')],
+        [
+            InlineKeyboardButton(
+                'Delete {0}'.format(cart_item['name']),
+                callback_data=cart_item['id']
+            )
         ]
+        for cart_item in cart_items['data']
+    ]
+    keyboard.append(
+        [InlineKeyboardButton('Menu', callback_data='menu')]
+    )
     reply_markup = InlineKeyboardMarkup(keyboard)
-
+    
     if not cart_items['data']:
         bot.send_message(
             text='Cart is empty',
@@ -186,8 +239,7 @@ def handle_cart(bot, update):
     bot.delete_message(
         chat_id=query.message.chat_id,
         message_id=query.message.message_id,
-    )
-
+    ) 
 
 
 def handle_users_reply(bot, update):
