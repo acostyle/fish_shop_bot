@@ -170,6 +170,14 @@ def handle_cart(bot, update):
         )
 
         return "HANDLE_MENU"
+    elif query.data == 'pay':
+        bot.edit_message_text(
+            text='Please, send your email',
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
+
+        return "WAITING_EMAIL"
     else:
         delete_product_from_cart(
             ACCESS_TOKEN,
@@ -178,6 +186,11 @@ def handle_cart(bot, update):
         )
         generate_cart(bot, update)
         return "HANDLE_CART"
+
+
+def handle_email(bot, update):
+    email = update.message.text
+    print(email)
 
 
 def generate_cart(bot, update):
@@ -193,7 +206,10 @@ def generate_cart(bot, update):
         for cart_item in cart_items['data']
     ]
     keyboard.append(
-        [InlineKeyboardButton('Menu', callback_data='menu')]
+        [
+            InlineKeyboardButton('Menu', callback_data='menu'),
+            InlineKeyboardButton('Pay', callback_data='pay'),
+        ]
     )
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -262,6 +278,7 @@ def handle_users_reply(bot, update):
         'HANDLE_MENU': handle_menu,
         'HANDLE_DESCRIPTION': handle_description,
         'HANDLE_CART': handle_cart,
+        'WAITING_EMAIL': handle_email,
     }
     state_handler = states_functions[user_state]
     try:
