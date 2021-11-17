@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
-from moltin import get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id
+from moltin import get_auth_token, get_all_products, get_product_by_id, get_product_photo_by_id, get_or_create_cart, add_product_to_cart, get_cart_items
 
 
 env = Env()
@@ -23,11 +23,13 @@ _database = None
 
 def start(bot, update):
     products = get_all_products(ACCESS_TOKEN)
+    get_or_create_cart(ACCESS_TOKEN, update.message.chat_id)
     keyboard = [
         [
-            InlineKeyboardButton(product['name'], callback_data=product['id']) 
+            InlineKeyboardButton(product['name'], callback_data=product['id'])
             for product in products
-        ]
+        ],
+        [InlineKeyboardButton('Cart', callback_data='cart')],
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -40,14 +42,26 @@ def start(bot, update):
 
 def handle_menu(bot, update):
     query = update.callback_query
-
+    
     keyboard = [
         [
-            InlineKeyboardButton('Назад', callback_data='back')
-        ]
+            InlineKeyboardButton(
+                '1 kg',
+                callback_data='1 kg, {0}'.format(query.data)
+            ),
+            InlineKeyboardButton(
+                '5 kg',
+                callback_data='5 kg, {0}'.format(query.data)
+            ),
+            InlineKeyboardButton(
+                '10 kg',
+                callback_data='10 kg, {0}'.format(query.data)
+            ),
+        ],
+        [InlineKeyboardButton('Назад', callback_data='back')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     product = get_product_by_id(ACCESS_TOKEN, query.data)
     product_photo_id = product['relationships']['main_image']['data']['id']
     product_photo = get_product_photo_by_id(ACCESS_TOKEN, product_photo_id)
@@ -83,7 +97,10 @@ def handle_menu(bot, update):
 
 def handle_description(bot, update):
     query = update.callback_query
-    if query.data == 'back':
+    query_info = query.data.split(', ')
+    query_command = query_info[0]
+    query_product_id = query_info[1]
+    if query_command == 'back':
         products = get_all_products(ACCESS_TOKEN)
         keyboard = [
             [
@@ -101,6 +118,29 @@ def handle_description(bot, update):
         )
 
         return "HANDLE_MENU"
+    
+    elif query_command == '1 kg':
+        add_product_to_cart(
+            ACCESS_TOKEN,
+            query.message.chat_id,
+            query_product_id,
+            1,
+        )
+    elif query_command == '5 kg':
+        add_product_to_cart(
+            ACCESS_TOKEN,
+            query.message.chat_id,
+            query_product_id,
+            5,
+        )
+    elif query_command == '10 kg':
+        add_product_to_cart(
+            ACCESS_TOKEN,
+            query.message.chat_id,
+            query_product_id,
+            10,
+        )
+    
 
 
 
