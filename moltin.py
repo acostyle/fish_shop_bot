@@ -12,9 +12,7 @@ CLIENT_SECRET = env.str('CLIENT_SECRET')
 def get_access_token(redis_db):
     access_token = redis_db.get('access_token')
     if not access_token:
-        token_data = get_auth_token()
-        time_to_expire = token_data[1]
-        access_token = token_data[0]
+        access_token, time_to_expire = get_auth_token()
         redis_db.set(
             'access_token',
             access_token,
