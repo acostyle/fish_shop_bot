@@ -1,4 +1,3 @@
-import datetime
 import requests
 from environs import Env
 
@@ -10,22 +9,19 @@ CLIENT_ID = env.str('CLIENT_ID')
 CLIENT_SECRET = env.str('CLIENT_SECRET')
 
 
-def verify_token():
-    token_data = get_auth_token()
-    if is_token_valid(token_data):
+def get_access_token(redis_db):
+    access_token = redis_db.get('access_token')
+    if not access_token:
+        token_data = get_auth_token()
+        time_to_expire = token_data[1]
         access_token = token_data[0]
-    else:
-        access_token = get_auth_token()[0]
+        redis_db.set(
+            'access_token',
+            access_token,
+            ex=time_to_expire,
+        )
     
     return access_token
-
-
-def is_token_valid(token_data):
-    token_expires = token_data[1]
-    now = datetime.datetime.now()
-    timestamp = datetime.datetime.fromtimestamp(token_expires)
-
-    return timestamp > now
 
 
 def get_auth_token():
@@ -43,8 +39,7 @@ def get_auth_token():
     return response_json['access_token'], response_json['expires']
 
 
-def get_all_products():
-    access_token = verify_token()
+def get_all_products(access_token):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
         'content-type': 'application/json',
@@ -59,8 +54,7 @@ def get_all_products():
     return products
 
 
-def get_product_by_id(product_id):
-    access_token = verify_token()
+def get_product_by_id(access_token, product_id):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
     }
@@ -71,8 +65,7 @@ def get_product_by_id(product_id):
     return response.json()['data']
 
 
-def get_product_photo_by_id(product_id):
-    access_token = verify_token()
+def get_product_photo_by_id(access_token, product_id):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
     }
@@ -83,8 +76,7 @@ def get_product_photo_by_id(product_id):
     return response.json()['data']['link']['href']
 
 
-def get_or_create_cart(cart_id):
-    access_token = verify_token()
+def get_or_create_cart(access_token, cart_id):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
     }
@@ -96,8 +88,7 @@ def get_or_create_cart(cart_id):
     return response.json()
 
 
-def add_product_to_cart(cart_id, product_id, product_amount):
-    access_token = verify_token()
+def add_product_to_cart(access_token, cart_id, product_id, product_amount):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
         'content-type': 'application/json',
@@ -118,8 +109,7 @@ def add_product_to_cart(cart_id, product_id, product_amount):
     return response.json()
 
 
-def get_cart_items(cart_id):
-    access_token = verify_token()
+def get_cart_items(access_token, cart_id):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
     }
@@ -131,8 +121,7 @@ def get_cart_items(cart_id):
     return response.json()
 
 
-def delete_product_from_cart(cart_id, product_id):
-    access_token = verify_token()
+def delete_product_from_cart(access_token, cart_id, product_id):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
     }
@@ -147,8 +136,7 @@ def delete_product_from_cart(cart_id, product_id):
     return response.json()
 
 
-def create_customer(chat_id, email):
-    access_token = verify_token()
+def create_customer(access_token, chat_id, email):
     headers = {
         'Authorization': 'Bearer {0}'.format(access_token),
     }
