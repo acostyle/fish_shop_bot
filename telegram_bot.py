@@ -93,10 +93,6 @@ def handle_menu(bot, update):
     else:
         kg_on_stock = 'Product is out of stock'
 
-    bot.delete_message(
-        chat_id=query.message.chat_id,
-        message_id=query.message.message_id,
-    )
     bot.send_photo(
         chat_id=query.message.chat_id,
         photo=product_photo,
@@ -107,6 +103,11 @@ def handle_menu(bot, update):
             kg_on_stock,
             product_description,
         ),
+    )
+
+    bot.delete_message(
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id,
     )
 
     return 'HANDLE_DESCRIPTION'
@@ -128,14 +129,14 @@ def handle_description(bot, update):
             [InlineKeyboardButton('Cart', callback_data='cart')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        bot.delete_message(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-        )
         bot.send_message(
             reply_markup=reply_markup,
             chat_id=query.message.chat_id,
             text='Welcome! Please, choose a fish:',
+        )
+        bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
         )
 
         return 'HANDLE_MENU'
@@ -170,14 +171,14 @@ def handle_cart(bot, update):
             [InlineKeyboardButton('Cart', callback_data='cart')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        bot.delete_message(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-        )
         bot.send_message(
             reply_markup=reply_markup,
             chat_id=query.message.chat_id,
             text='Welcome! Please, choose a fish:',
+        )
+        bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
         )
 
         return 'HANDLE_MENU'
