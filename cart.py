@@ -2,12 +2,13 @@ from textwrap import dedent
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from moltin import get_cart_items
+from moltin import get_cart_items, get_access_token
 
 
-def generate_cart(bot, update):
+def generate_cart(db, bot, update):
+    access_token = get_access_token(db)
     query = update.callback_query
-    cart_items = get_cart_items(query.message.chat_id)
+    cart_items = get_cart_items(access_token, query.message.chat_id)
     keyboard = [
         [
             InlineKeyboardButton(

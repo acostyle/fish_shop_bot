@@ -8,12 +8,12 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 from validate_email import validate_email
 
 from moltin import (
-    create_customer, delete_product_from_cart,
+    create_customer, delete_product_from_cart, get_access_token,
     get_all_products, get_product_by_id, get_product_photo_by_id,
     get_or_create_cart, add_product_to_cart,
     delete_product_from_cart
 )
-from utils import generate_cart
+from cart import generate_cart
 
 
 env = Env()
@@ -31,8 +31,9 @@ _database = None
 
 def start(bot, update):
     logger.info('User started bot')
-    get_or_create_cart(update.message.chat_id)
-    products = get_all_products()
+    access_token = get_access_token(_database)
+    get_or_create_cart(access_token, update.message.chat_id)
+    products = get_all_products(access_token)
     keyboard = [
         [
             InlineKeyboardButton(
@@ -52,10 +53,11 @@ def start(bot, update):
 
 
 def handle_menu(bot, update):
+    access_token = get_access_token(_database)
     query = update.callback_query
 
     if query.data == 'cart':
-        generate_cart(bot, update)
+        generate_cart(_database, bot, update)
         return 'HANDLE_CART'
     
     keyboard = [
@@ -77,9 +79,9 @@ def handle_menu(bot, update):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    product = get_product_by_id(query.data)
+    product = get_product_by_id(access_token, query.data)
     product_photo_id = product['relationships']['main_image']['data']['id']
-    product_photo = get_product_photo_by_id(product_photo_id)
+    product_photo = get_product_photo_by_id(access_token, product_photo_id)
     product_name = product['name']
     product_description = product['description']
     product_price_per_kg = '{0} per kg'.format(
@@ -114,10 +116,11 @@ def handle_menu(bot, update):
 
 
 def handle_description(bot, update):
+    access_token = get_access_token(_database)
     query = update.callback_query
 
     if query.data == 'menu':
-        products = get_all_products()
+        products = get_all_products(access_token)
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -141,12 +144,13 @@ def handle_description(bot, update):
 
         return 'HANDLE_MENU'
     elif query.data == 'cart':
-        generate_cart(bot, update)
+        generate_cart(_database, bot, update)
 
         return 'HANDLE_CART'
 
     product_quantity, product_id = query.data.split(', ')
     add_product_to_cart(
+        access_token,
         query.message.chat_id,
         product_id,
         int(product_quantity),
@@ -156,10 +160,11 @@ def handle_description(bot, update):
 
 
 def handle_cart(bot, update):
+    access_token = get_access_token(_database)
     query = update.callback_query
 
     if query.data == 'menu':
-        products = get_all_products()
+        products = get_all_products(access_token)
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -192,20 +197,22 @@ def handle_cart(bot, update):
         return 'WAITING_EMAIL'
     
     delete_product_from_cart(
+        access_token,
         query.message.chat_id,
         query.data,
     )
-    generate_cart(bot, update)
+    generate_cart(_database, bot, update)
 
     return 'HANDLE_CART'
 
 
 def handle_email(bot, update):
+    access_token = get_access_token(_database)
     email = update.message.text
     is_valid = validate_email(email)
     if is_valid:
         try:
-            create_customer(str(update.message.chat_id), email)
+            create_customer(access_token, str(update.message.chat_id), email)
         except HTTPError:
             update.message.reply_text('Try again!')
             return 'WAITING EMAIL'
@@ -224,7 +231,6 @@ def handle_email(bot, update):
 
 
 def handle_users_reply(bot, update):
-    db = get_database_connection()
     if update.message:
         user_reply = update.message.text
         chat_id = update.message.chat_id
@@ -236,7 +242,7 @@ def handle_users_reply(bot, update):
     if user_reply == '/start':
         user_state = 'START'
     else:
-        user_state = db.get(chat_id).decode('utf-8')
+        user_state = _database.get(chat_id)
 
     states_functions = {
         'START': start,
@@ -248,7 +254,7 @@ def handle_users_reply(bot, update):
     state_handler = states_functions[user_state]
     try:
         next_state = state_handler(bot, update)
-        db.set(chat_id, next_state)
+        _database.set(chat_id, next_state)
     except Exception as err:
         logger.error(err)
 
@@ -259,7 +265,8 @@ def get_database_connection():
         _database = redis.Redis(
             host=REDIS_HOST,
             port=REDIS_PORT,
-            password=REDIS_PASSWORD
+            password=REDIS_PASSWORD,
+            decode_responses=True,
         )
     return _database
 
@@ -269,7 +276,7 @@ def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO,
     )
-
+    get_database_connection()
     updater = Updater(TELEGRAM_TOKEN)
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
