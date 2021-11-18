@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from moltin import get_cart_items
@@ -44,18 +46,21 @@ def generate_cart(bot, update):
         price_per_kg = price['unit']['formatted']
         total_price = price['value']['formatted']
         cart_description.append(
-            '\nName: {0}\n\
-            \nQuantity: {1}\
-            \nPrice per kg: {2}\
-            \nTotal product price: {3}\n\n'.format(
+            dedent('''\n
+            Name: {0}
+            
+            Quantity: {1}
+            Price per kg: {2}
+            Total product price: {3}'''.format(
                 name,
                 quantity,
                 price_per_kg,
                 total_price,
             ),
+            )
         )
 
-    cart_description.append('Total: {0}'.format(total))
+    cart_description.append('\n\nTotal: {0}'.format(total))
     cart_recipe = ''.join(cart_description)
     bot.send_message(
         text=cart_recipe,
