@@ -34,9 +34,9 @@ def get_auth_token():
     api_url = '{0}/oauth/access_token'.format(API_BASE_URL)
     response = requests.post(url=api_url, data=payload)
     response.raise_for_status()
-    response_json = response.json()
+    auth_data = response.json()
 
-    return response_json['access_token'], response_json['expires']
+    return auth_data['access_token'], auth_data['expires']
 
 
 def get_all_products(access_token):
@@ -47,9 +47,9 @@ def get_all_products(access_token):
     api_url = '{0}/v2/products'.format(API_BASE_URL)
     response = requests.get(url=api_url, headers=headers)
     response.raise_for_status()
-    response_json = response.json()
+    products_data = response.json()
 
-    products = [product for product in response_json['data']]
+    products = [product for product in products_data['data']]
 
     return products
 
