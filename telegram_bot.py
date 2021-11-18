@@ -322,13 +322,10 @@ def handle_users_reply(bot, update):
 def get_database_connection():
     global _database
     if _database is None:
-        database_password = REDIS_PASSWORD
-        database_host = REDIS_HOST
-        database_port = REDIS_PORT
         _database = redis.Redis(
-            host=database_host,
-            port=database_port,
-            password=database_password
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            password=REDIS_PASSWORD
         )
     return _database
 
