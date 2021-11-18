@@ -24,13 +24,13 @@
 
 Bot for buying fish via Telegram
 
-Demonstration of the bot
+#### Demonstration of the bot
 
 ![](https://media.giphy.com/media/WAfjTPEh4GNRQzsqch/giphy.gif)
 
 ## Installation
 
-* Install make;
+* Install [make](https://stackoverflow.com/questions/32127524/how-to-install-and-use-make-in-windows);
 * Create your CMS [here](https://www.elasticpath.com)
 * Clone github repository:
 ```bash
