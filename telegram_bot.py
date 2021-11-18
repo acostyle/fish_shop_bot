@@ -8,11 +8,12 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 from validate_email import validate_email
 
 from moltin import (
-    create_customer, delete_product_from_cart, get_auth_token,
+    create_customer, delete_product_from_cart,
     get_all_products, get_product_by_id, get_product_photo_by_id,
-    get_or_create_cart, add_product_to_cart, get_cart_items,
+    get_or_create_cart, add_product_to_cart,
     delete_product_from_cart
 )
+from utils import generate_cart
 
 
 env = Env()
@@ -92,10 +93,6 @@ def handle_menu(bot, update):
     else:
         kg_on_stock = 'Product is out of stock'
 
-    bot.delete_message(
-        chat_id=query.message.chat_id,
-        message_id=query.message.message_id,
-    )
     bot.send_photo(
         chat_id=query.message.chat_id,
         photo=product_photo,
@@ -106,6 +103,11 @@ def handle_menu(bot, update):
             kg_on_stock,
             product_description,
         ),
+    )
+
+    bot.delete_message(
+        chat_id=query.message.chat_id,
+        message_id=query.message.message_id,
     )
 
     return 'HANDLE_DESCRIPTION'
@@ -127,14 +129,14 @@ def handle_description(bot, update):
             [InlineKeyboardButton('Cart', callback_data='cart')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        bot.delete_message(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-        )
         bot.send_message(
             reply_markup=reply_markup,
             chat_id=query.message.chat_id,
             text='Welcome! Please, choose a fish:',
+        )
+        bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
         )
 
         return 'HANDLE_MENU'
@@ -169,14 +171,14 @@ def handle_cart(bot, update):
             [InlineKeyboardButton('Cart', callback_data='cart')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        bot.delete_message(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-        )
         bot.send_message(
             reply_markup=reply_markup,
             chat_id=query.message.chat_id,
             text='Welcome! Please, choose a fish:',
+        )
+        bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
         )
 
         return 'HANDLE_MENU'
@@ -219,71 +221,6 @@ def handle_email(bot, update):
     update.message.reply_text('Error! Not valid email')
     logger.info('User sent not valid email')
     return 'WAITING EMAIL'
-
-
-def generate_cart(bot, update):
-    query = update.callback_query
-    cart_items = get_cart_items(query.message.chat_id)
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                'Delete {0}'.format(cart_item['name']),
-                callback_data=cart_item['id'],
-            ),
-        ]
-        for cart_item in cart_items['data']
-    ]
-    keyboard.append(
-        [
-            InlineKeyboardButton('Menu', callback_data='menu'),
-            InlineKeyboardButton('Pay', callback_data='pay'),
-        ],
-    )
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    if not cart_items['data']:
-        bot.send_message(
-            text='Cart is empty',
-            reply_markup=reply_markup,
-            chat_id=query.message.chat_id,
-        )
-        bot.delete_message(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-        )
-        return 'HANDLE_DESCRIPTION'
-
-    total = cart_items['meta']['display_price']['without_tax']['formatted']
-    cart_description = []
-    for cart_item in cart_items['data']:
-        name = cart_item['name']
-        quantity = cart_item['quantity']
-        price = cart_item['meta']['display_price']['with_tax']
-        price_per_kg = price['unit']['formatted']
-        total_price = price['value']['formatted']
-        cart_description.append(
-            '\nName: {0}\n\
-            \nQuantity: {1}\
-            \nPrice per kg: {2}\
-            \nTotal product price: {3}\n\n'.format(
-                name,
-                quantity,
-                price_per_kg,
-                total_price,
-            ),
-        )
-
-    cart_description.append('Total: {0}'.format(total))
-    cart_recipe = ''.join(cart_description)
-    bot.send_message(
-        text=cart_recipe,
-        reply_markup=reply_markup,
-        chat_id=query.message.chat_id,
-    )
-    bot.delete_message(
-        chat_id=query.message.chat_id,
-        message_id=query.message.message_id,
-    )
 
 
 def handle_users_reply(bot, update):
