@@ -24,15 +24,14 @@ TELEGRAM_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
 REDIS_PASSWORD = env.str('REDIS_PASSWORD')
 REDIS_HOST = env.str('REDIS_HOST')
 REDIS_PORT = env.int('REDIS_PORT')
-ACCESS_TOKEN = get_auth_token()
 
 _database = None
 
 
 def start(bot, update):
     logger.info('User started bot')
-    get_or_create_cart(ACCESS_TOKEN, update.message.chat_id)
-    products = get_all_products(ACCESS_TOKEN)
+    get_or_create_cart(update.message.chat_id)
+    products = get_all_products()
     keyboard = [
         [
             InlineKeyboardButton(
@@ -77,9 +76,9 @@ def handle_menu(bot, update):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    product = get_product_by_id(ACCESS_TOKEN, query.data)
+    product = get_product_by_id(query.data)
     product_photo_id = product['relationships']['main_image']['data']['id']
-    product_photo = get_product_photo_by_id(ACCESS_TOKEN, product_photo_id)
+    product_photo = get_product_photo_by_id(product_photo_id)
     product_name = product['name']
     product_description = product['description']
     product_price_per_kg = '{0} per kg'.format(
@@ -116,7 +115,7 @@ def handle_description(bot, update):
     query = update.callback_query
 
     if query.data == 'menu':
-        products = get_all_products(ACCESS_TOKEN)
+        products = get_all_products()
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -146,7 +145,6 @@ def handle_description(bot, update):
 
     product_quantity, product_id = query.data.split(', ')
     add_product_to_cart(
-        ACCESS_TOKEN,
         query.message.chat_id,
         product_id,
         int(product_quantity),
@@ -159,7 +157,7 @@ def handle_cart(bot, update):
     query = update.callback_query
 
     if query.data == 'menu':
-        products = get_all_products(ACCESS_TOKEN)
+        products = get_all_products()
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -192,7 +190,6 @@ def handle_cart(bot, update):
         return 'WAITING_EMAIL'
     
     delete_product_from_cart(
-        ACCESS_TOKEN,
         query.message.chat_id,
         query.data,
     )
@@ -206,7 +203,7 @@ def handle_email(bot, update):
     is_valid = validate_email(email)
     if is_valid:
         try:
-            create_customer(ACCESS_TOKEN, str(update.message.chat_id), email)
+            create_customer(str(update.message.chat_id), email)
         except HTTPError:
             update.message.reply_text('Try again!')
             return 'WAITING EMAIL'
@@ -226,7 +223,7 @@ def handle_email(bot, update):
 
 def generate_cart(bot, update):
     query = update.callback_query
-    cart_items = get_cart_items(ACCESS_TOKEN, query.message.chat_id)
+    cart_items = get_cart_items(query.message.chat_id)
     keyboard = [
         [
             InlineKeyboardButton(
