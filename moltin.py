@@ -1,3 +1,4 @@
+import json
 import requests
 from environs import Env
 
@@ -18,7 +19,7 @@ def get_access_token(redis_db):
             access_token,
             ex=time_to_expire,
         )
-    
+
     return access_token
 
 
@@ -34,7 +35,7 @@ def get_auth_token():
     response.raise_for_status()
     auth_data = response.json()
 
-    return auth_data['access_token'], auth_data['expires']
+    return auth_data['access_token'], auth_data['expires_in']
 
 
 def get_all_products(access_token):
