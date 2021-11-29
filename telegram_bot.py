@@ -2,7 +2,8 @@ import logging
 import redis
 from environs import Env
 from requests.models import HTTPError
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 from validate_email import validate_email
@@ -14,6 +15,7 @@ from moltin import (
     delete_product_from_cart
 )
 from cart import generate_cart
+from keyboard import create_menu_markup
 
 
 env = Env()
@@ -33,18 +35,7 @@ def start(bot, update):
     logger.info('User started bot')
     access_token = get_access_token(_database)
     get_or_create_cart(access_token, update.message.chat_id)
-    products = get_all_products(access_token)
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                product['name'],
-                callback_data=product['id'],
-            )
-            for product in products
-        ],
-        [InlineKeyboardButton('Cart', callback_data='cart')],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = create_menu_markup(access_token)
     update.message.reply_text(
         reply_markup=reply_markup,
         text='Welcome! Please, choose a fish:',
@@ -59,6 +50,16 @@ def handle_menu(bot, update):
     if query.data == 'cart':
         generate_cart(_database, bot, update)
         return 'HANDLE_CART'
+    elif 'page' in query.data:
+        page = query.data.split(',')[1]
+        reply_markup = create_menu_markup(access_token, int(page))
+
+        bot.edit_message_text(
+            text='Welcome! Please, choose a fish:',
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            reply_markup=reply_markup,
+        )
     
     keyboard = [
         [
@@ -120,18 +121,7 @@ def handle_description(bot, update):
     query = update.callback_query
 
     if query.data == 'menu':
-        products = get_all_products(access_token)
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    product['name'],
-                    callback_data=product['id'],
-                )
-                for product in products
-            ],
-            [InlineKeyboardButton('Cart', callback_data='cart')],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        reply_markup = create_menu_markup(access_token)
         bot.send_message(
             reply_markup=reply_markup,
             chat_id=query.message.chat_id,
@@ -173,7 +163,7 @@ def handle_cart(bot, update):
                 )
                 for product in products
             ],
-            [InlineKeyboardButton('Cart', callback_data='cart')],
+            [InlineKeyboardButton('Cart 🛒', callback_data='cart')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         bot.send_message(
